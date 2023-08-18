@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tambola Game</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 50px;
+        }
+
+        h1,
+        h2 {
+            color: #333;
+        }
+
+        .controls {
+            margin: 20px 0;
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        #board {
+            display: flex;
+            flex-wrap: wrap;
+            margin-top: 30px;
+            justify-content: center;
+        }
+
+        .number-block {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #ccc;
+            margin: 3px;
+            font-weight: bold;
+        }
+
+        .highlighted {
+            background-color: #FFD700;
+        }
+
+    </style>
+</head>
+
+<body>
+    <h1>Tambola Number Caller</h1>
+
+    <div class="controls">
+        <label for="timer">Set Timer (in seconds): </label>
+        <input type="number" id="timer" value="10">
+        <button onclick="startGame()">Start Game</button>
+        <button onclick="pauseGame()">Pause</button>
+    </div>
+
+    <h2>Last Number: <span id="lastNumber">-</span></h2>
+
+    <div id="board">
+        <!-- Number blocks will be added dynamically by JavaScript -->
+    </div>
+
+    <div id="calledNumbers"></div>
+
+    <script>
+        let calledNumbers = [];
+        let timerInterval;
+        let isPaused = false;
+
+        window.onload = function() {
+            generateBoard();
+        }
+
+        function generateBoard() {
+            const board = document.getElementById("board");
+            for (let i = 1; i <= 90; i++) {
+                let numberBlock = document.createElement("div");
+                numberBlock.classList.add("number-block");
+                numberBlock.id = `num-${i}`;
+                numberBlock.innerText = i;
+                board.appendChild(numberBlock);
+            }
+        }
+
+        function startGame() {
+            if (isPaused) {
+                isPaused = false;
+                return;
+            }
+
+            clearInterval(timerInterval);
+
+            const timer = document.getElementById("timer").value * 1000;
+
+            timerInterval = setInterval(() => {
+                callNumber();
+            }, timer);
+        }
+
+        function callNumber() {
+            if (calledNumbers.length === 90) {
+                clearInterval(timerInterval);
+                alert("All numbers have been called!");
+                return;
+            }
+
+            let number;
+            do {
+                number = Math.floor(Math.random() * 90) + 1;
+            } while (calledNumbers.includes(number));
+
+            calledNumbers.push(number);
+
+            speakNumber(number);
+
+            document.getElementById(`num-${number}`).classList.add("highlighted");
+            document.getElementById("lastNumber").innerText = number;
+            document.getElementById("calledNumbers").innerText = `Called Numbers: ${calledNumbers.join(", ")}`;
+        }
+
+        function pauseGame() {
+            isPaused = true;
+            clearInterval(timerInterval);
+        }
+
+        function speakNumber(number) {
+            if (!window.speechSynthesis) {
+                console.error("Web Speech API not supported.");
+                return;
+            }
+
+            const utterance = new SpeechSynthesisUtterance(number.toString());
+
+            utterance.onerror = (event) => {
+                console.error("Speech synthesis error:", event.error);
+            };
+
+            window.speechSynthesis.speak(utterance);
+        }
+    </script>
+</body>
+
+</html>
