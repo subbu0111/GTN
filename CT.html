@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>21-Card Trick</title>
+    <style>
+        body {
+            text-align: center; /* Centers everything in body */
+            font-family: Arial, sans-serif;
+        }
+        
+        .card {
+            width: 50px;
+            height: 80px;
+            margin: 5px;
+            border: 1px solid black;
+            text-align: center;
+            vertical-align: top;
+            cursor: pointer;
+        }
+
+        #cards {
+            display: inline-block; /* Ensures the columns stay next to each other */
+        }
+
+        .column {
+            display: inline-block;
+            vertical-align: top;
+        }
+
+        /* Centering the buttons */
+        div > div {
+            margin-top: 10px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div>
+        <p>Select a number in your mind and click on the respective column number below:</p>
+        <div id="cards"></div>
+        <p id="message"></p>
+        <p id="selectedCard"></p>
+        <div>
+            <button onclick="selectColumn(1)">Column 1</button>
+            <button onclick="selectColumn(2)">Column 2</button>
+            <button onclick="selectColumn(3)">Column 3</button>
+        </div>
+    </div>
+
+    <script>
+        let deck = [...Array(21).keys()];
+        //let deck = Array.from({length: 21}, (_, i) => i + 201);
+	let shuffleCount = 0;
+
+        function displayCards() {
+            let html = '';
+            for (let j = 0; j < 3; j++) {
+                html += '<div class="column">';
+                for (let i = j; i < 21; i += 3) {
+                    html += `<div class="card">${deck[i]}</div>`;
+                }
+                html += '</div>';
+            }
+            document.getElementById('cards').innerHTML = html;
+            
+            if (shuffleCount > 0 && shuffleCount < 3) {
+                document.getElementById('message').innerText = 'Shuffle is done. Select the column again.';
+            } else {
+                document.getElementById('message').innerText = '';
+            }
+        }
+
+        function selectColumn(column) {
+            let firstColumn = [];
+            let secondColumn = [];
+            let thirdColumn = [];
+            for (let i = 0; i < 21; i += 3) {
+                firstColumn.push(deck[i]);
+                secondColumn.push(deck[i + 1]);
+                thirdColumn.push(deck[i + 2]);
+            }
+
+            switch (column) {
+                case 1:
+                    deck = secondColumn.concat(firstColumn).concat(thirdColumn);
+                    break;
+                case 2:
+                    deck = firstColumn.concat(secondColumn).concat(thirdColumn);
+                    break;
+                case 3:
+                    deck = firstColumn.concat(thirdColumn).concat(secondColumn);
+                    break;
+            }
+
+            shuffleCount++;
+            if (shuffleCount === 3) {
+                document.getElementById('selectedCard').innerText = 'You are thinking of number : ' + deck[10];
+                shuffleCount = 0;
+                deck = [...Array(21).keys()];
+            } else {
+                document.getElementById('message').innerText = 'Shuffle is done. Select the column again.';
+            }
+            displayCards();
+        }
+
+        displayCards();
+    </script>
+</body>
+</html>
