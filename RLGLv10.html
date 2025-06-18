@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Red Light Green Light</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background-color: #f0f0f0;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+    h1 { margin-top: 20px; font-size: 2em; }
+    #status { font-size: 1.5em; margin-bottom: 10px; }
+    #timer, #difficulty { font-size: 1.2em; margin-bottom: 10px; }
+    #countdown { font-size: 3em; color: #333; font-weight: bold; margin-bottom: 10px; }
+    #restartBtn, #startBtn {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      padding: 8px 16px;
+      font-size: 1em;
+      cursor: pointer;
+      z-index: 10;
+    }
+    #restartBtn { display: none; }
+    #gameCanvas {
+      display: block;
+      margin: 0 auto;
+      background-color: #ffffff;
+      border: 2px solid #000;
+    }
+    .radio-group label {
+      margin: 0 10px;
+    }
+  </style>
+</head>
+<body ontouchstart="handleStartMove()" ontouchend="handleStopMove()">
+  <h1>Red Light Green Light</h1>
+  <div id="countdown"></div>
+  <div id="status">Waiting...</div>
+  <div id="timer">Time: 0s</div>
+  <div id="difficulty" class="radio-group">
+    Difficulty:
+    <label><input type="radio" name="difficulty" value="easy"> Easy</label>
+    <label><input type="radio" name="difficulty" value="medium" checked> Medium</label>
+    <label><input type="radio" name="difficulty" value="hard"> Hard</label>
+  </div>
+  <button id="restartBtn" onclick="restartGame()">Restart</button>
+  <button id="startBtn" onclick="startGame()">Start</button>
+  <canvas id="gameCanvas" width="800" height="200"></canvas>
+
+  <audio id="bgMusic" src="https://cdn.pixabay.com/audio/2022/08/01/audio_f3498cfe48.mp3" loop></audio>
+  <audio id="redSound" src="https://cdn.pixabay.com/audio/2022/03/15/audio_6d1a232640.mp3"></audio>
+  <audio id="greenSound" src="https://cdn.pixabay.com/audio/2022/03/15/audio_c8cb4c0ce0.mp3"></audio>
+  <audio id="winSound" src="https://cdn.pixabay.com/audio/2022/03/15/audio_9a234e85ab.mp3"></audio>
+  <audio id="loseSound" src="https://cdn.pixabay.com/audio/2022/03/15/audio_5393f3130c.mp3"></audio>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const statusEl = document.getElementById("status");
+    const timerEl = document.getElementById("timer");
+    const countdownEl = document.getElementById("countdown");
+    const restartBtn = document.getElementById("restartBtn");
+    const startBtn = document.getElementById("startBtn");
+    const bgMusic = document.getElementById("bgMusic");
+    const redSound = document.getElementById("redSound");
+    const greenSound = document.getElementById("greenSound");
+    const winSound = document.getElementById("winSound");
+    const loseSound = document.getElementById("loseSound");
+
+    let gameTime = 0, timerInterval, intervalId, difficultySettings = {}, gameState = "waiting";
+    let started = false;
+
+    const player = { x: 50, y: 150, width: 20, height: 20, speed: 3, moving: false, color: "black" };
+    const doll = { x: 700, y: 60, width: 40, height: 60, angle: 0, rotating: false };
+    const finishLine = 750;
+
+    const DIFFICULTY = {
+      easy:   { greenMin: 2000, greenMax: 3000, redMin: 2000, redMax: 3000, playerSpeed: 3, dollSpeed: 0.02 },
+      medium: { greenMin: 1500, greenMax: 2500, redMin: 1500, redMax: 2500, playerSpeed: 3, dollSpeed: 0.05 },
+      hard:   { greenMin:  800, greenMax: 1500, redMin: 1000, redMax: 2000, playerSpeed: 2, dollSpeed: 0.08 }
+    };
+
+    function drawGame() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.beginPath(); ctx.moveTo(finishLine, 0); ctx.lineTo(finishLine, canvas.height);
+      ctx.strokeStyle = "blue"; ctx.stroke();
+      ctx.fillStyle = player.color;
+      ctx.fillRect(player.x, player.y - player.height, player.width, player.height);
+      ctx.fillStyle = "orange";
+      ctx.fillRect(doll.x - doll.width / 2, doll.y, doll.width, doll.height);
+      ctx.save();
+      ctx.translate(doll.x, doll.y);
+      ctx.rotate(doll.angle);
+      ctx.beginPath(); ctx.arc(0, 0, 20, 0, Math.PI * 2);
+      ctx.fillStyle = "pink"; ctx.fill();
+      ctx.fillStyle = "black";
+      ctx.beginPath(); ctx.arc(-6, -5, 3, 0, Math.PI * 2); ctx.arc(6, -5, 3, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(0, 5, 6, 0, Math.PI); ctx.stroke();
+      ctx.restore();
+    }
+
+    function getRandomDelay(min, max) { return Math.random() * (max - min) + min; }
+
+    function setLightState(state) {
+      gameState = state;
+      statusEl.textContent = state === "green" ? "GREEN LIGHT - GO!" : "RED LIGHT - STOP!";
+      statusEl.style.color = state === "green" ? "green" : "red";
+      doll.rotating = (state === "red");
+      (state === "green" ? greenSound : redSound).play().catch(() => {});
+    }
+
+    function switchLight() {
+      const nextState = gameState === "green" ? "red" : "green";
+      setLightState(nextState);
+      clearInterval(intervalId);
+      const delay = getRandomDelay(
+        nextState === "green" ? difficultySettings.greenMin : difficultySettings.redMin,
+        nextState === "green" ? difficultySettings.greenMax : difficultySettings.redMax
+      );
+      intervalId = setInterval(switchLight, delay);
+    }
+
+    function startGame() {
+      if (started) return;
+      started = true;
+      const difficulty = document.querySelector('input[name="difficulty"]:checked').value;
+      difficultySettings = DIFFICULTY[difficulty];
+      player.speed = difficultySettings.playerSpeed;
+      startBtn.style.display = "none";
+      countdownEl.textContent = "3";
+      let count = 3;
+      const countdownInterval = setInterval(() => {
+        count--;
+        countdownEl.textContent = count > 0 ? count : (count === 0 ? "GO!" : "");
+        if (count < 0) {
+          clearInterval(countdownInterval);
+          bgMusic.play().catch(() => {});
+          setLightState("green");
+          gameTime = 0;
+          timerInterval = setInterval(() => {
+            gameTime++;
+            timerEl.textContent = `Time: ${gameTime}s`;
+          }, 1000);
+          intervalId = setInterval(switchLight, getRandomDelay(difficultySettings.greenMin, difficultySettings.greenMax));
+        }
+      }, 1000);
+    }
+
+    function endGame(result) {
+      clearInterval(intervalId);
+      clearInterval(timerInterval);
+      gameState = result;
+      restartBtn.style.display = "inline-block";
+      if (result === "win") {
+        statusEl.textContent = "YOU WIN!";
+        statusEl.style.color = "blue";
+        winSound.play().catch(() => {});
+      } else {
+        statusEl.textContent = "YOU MOVED ON RED - GAME OVER";
+        statusEl.style.color = "black";
+        player.color = "red";
+        loseSound.play().catch(() => {});
+      }
+    }
+
+    function restartGame() {
+      player.x = 50; player.color = "black";
+      gameState = "waiting"; started = false;
+      statusEl.textContent = "Waiting...";
+      timerEl.textContent = "Time: 0s";
+      countdownEl.textContent = "";
+      restartBtn.style.display = "none";
+      startBtn.style.display = "inline-block";
+      updateGame();
+    }
+
+    document.addEventListener("click", () => {
+      [bgMusic, redSound, greenSound, winSound, loseSound].forEach(s => { try { s.play().then(() => s.pause()); } catch(e) {} });
+    }, { once: true });
+
+    function handleStartMove() { player.moving = true; }
+    function handleStopMove() { player.moving = false; }
+
+    document.addEventListener("keydown", e => { if (e.code === "Space") handleStartMove(); });
+    document.addEventListener("keyup", e => { if (e.code === "Space") handleStopMove(); });
+
+    function updateGame() {
+      if (gameState === "green" && player.moving) player.x += player.speed;
+      else if (gameState === "red" && player.moving) endGame("lose");
+      if (player.x + player.width >= finishLine) endGame("win");
+      doll.angle = doll.rotating ? doll.angle + difficultySettings.dollSpeed : 0;
+      drawGame();
+      if (gameState !== "win" && gameState !== "lose") requestAnimationFrame(updateGame);
+    }
+
+    updateGame();
+  </script>
+</body>
+</html>
